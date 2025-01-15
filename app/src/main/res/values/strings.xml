@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TimeMacro</string>
+    <string name="accessibility_service_description">앱의 자동 클릭 기능을 위한 접근성 서비스입니다.</string>
+</resources>
