@@ -12,9 +12,11 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    fun performClick(x: Float, y: Float): Boolean {
+    // performClick 함수 수정: Float 형 x, y를 Int 형으로 받도록 변경
+    fun performClick(x: Int, y: Int): Boolean {
+        // Int 형 x, y를 Float 형으로 변환하여 Path 객체 생성에 사용
         val path = Path()
-        path.moveTo(x, y)
+        path.moveTo(x.toFloat(), y.toFloat())
 
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
