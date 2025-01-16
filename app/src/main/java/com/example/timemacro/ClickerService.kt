@@ -46,11 +46,7 @@ class ClickerService : Service() {
         overlayButton = Button(this).apply {
             text = "Click Here"
             setOnClickListener {
-                // Adjusted to account for status and navigation bar
-                performClickAtPosition(
-                    targetParams.x.toFloat() + targetView!!.width / 2,
-                    targetParams.y.toFloat() + targetView!!.height / 2 + getStatusBarHeight()
-                )
+                performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
             }
         }
 
@@ -92,13 +88,8 @@ class ClickerService : Service() {
             }
 
             targetParams.gravity = Gravity.TOP or Gravity.START
-
-            // 네비게이션 바와 상태 바를 고려하여 y축 위치 설정
-            val adjustedY = 500 - getStatusBarHeight() - getNavigationBarHeight()
-
             targetParams.x = 500 // Initial position
-            targetParams.y = adjustedY // Y축 위치 조정
-
+            targetParams.y = 500
             windowManager.addView(targetView, targetParams)
 
             targetView?.setOnTouchListener { view, event ->
@@ -114,33 +105,12 @@ class ClickerService : Service() {
         }
     }
 
-
     private fun performClickAtPosition(x: Float, y: Float) {
         ClickerAccessibilityService.instance?.let { service ->
             if (!service.performClick(x, y)) {
                 Log.e("ClickerService", "Failed to perform click")
             }
         } ?: Log.e("ClickerService", "Accessibility Service not running")
-    }
-
-    // 상태 표시줄 높이 가져오는 함수
-    private fun getStatusBarHeight(): Int {
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) {
-            resources.getDimensionPixelSize(resourceId)
-        } else {
-            0
-        }
-    }
-
-    // 내비게이션 바 높이 가져오는 함수
-    private fun getNavigationBarHeight(): Int {
-        val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
-        return if (resourceId > 0) {
-            resources.getDimensionPixelSize(resourceId)
-        } else {
-            0
-        }
     }
 
     override fun onDestroy() {
