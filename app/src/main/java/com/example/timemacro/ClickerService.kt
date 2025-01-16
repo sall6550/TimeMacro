@@ -10,7 +10,6 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Button
 import android.util.Log
-
 class ClickerService : Service() {
     private lateinit var windowManager: WindowManager
     private lateinit var overlayButton: Button
@@ -31,7 +30,7 @@ class ClickerService : Service() {
         overlayButton = Button(this).apply {
             text = "Click Here"
             setOnClickListener {
-                performClickAtPosition(500, 500)  // 예시 좌표, Int 형으로 변경
+                performClickAtPosition(500f, 500f)  // 예시 좌표
             }
         }
 
@@ -42,8 +41,7 @@ class ClickerService : Service() {
         windowManager.addView(overlayButton, params)
     }
 
-    // performClickAtPosition 함수 수정: Float 형 x, y를 Int 형으로 받도록 변경
-    private fun performClickAtPosition(x: Int, y: Int) {
+    private fun performClickAtPosition(x: Float, y: Float) {
         ClickerAccessibilityService.instance?.let { service ->
             if (!service.performClick(x, y)) {
                 Log.e("ClickerService", "Failed to perform click")
