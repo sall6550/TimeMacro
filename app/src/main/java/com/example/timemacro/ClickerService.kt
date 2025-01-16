@@ -84,7 +84,7 @@ class ClickerService : Service() {
         if (targetView == null) {
             targetView = ImageView(this).apply {
                 setImageResource(android.R.drawable.ic_menu_mylocation) // Use a suitable icon
-                alpha = 0.5f // Make it semi-transparent
+//                alpha = 0.5f // Make it semi-transparent
             }
 
             targetParams.gravity = Gravity.TOP or Gravity.START
@@ -98,6 +98,9 @@ class ClickerService : Service() {
                         targetParams.x = event.rawX.toInt() - view.width / 2
                         targetParams.y = event.rawY.toInt() - view.height / 2
                         windowManager.updateViewLayout(view, targetParams)
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        view.performClick()
                     }
                 }
                 true
