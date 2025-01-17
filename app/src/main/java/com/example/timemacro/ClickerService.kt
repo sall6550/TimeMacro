@@ -20,7 +20,12 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+/**
+ * 오버레이 클릭 서비스
+ * 화면 위에 떠있는 버튼을 통해 특정 위치에 자동 클릭을 수행합니다.
+ */
 class ClickerService : Service() {
+    // UI 컴포넌트
     private var windowManager: WindowManager? = null
     private var overlayButton: Button? = null
     private var coordinateButton: Button? = null
@@ -28,18 +33,42 @@ class ClickerService : Service() {
     private var closeButton: Button? = null
     private var targetView: ImageView? = null
     private var timeTextView: TextView? = null
-    private var numberPickerButton: Button? = null // 숫자 선택 버튼 추가
+    private var numberPickerButton: Button? = null
+
+    // 상태 관리
     private var isAutoClicking = false
     private val handler = Handler(Looper.getMainLooper())
 
-    private val params = WindowManager.LayoutParams(
+    // 윈도우 매니저 파라미터 설정
+    private val params = createDefaultLayoutParams()
+    private val targetParams = createTargetLayoutParams()
+
+    override fun onBind(intent: Intent): IBinder? = null
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onCreate() {
+        super.onCreate()
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        initializeViews()
+        setupViewPositions()
+        updateTime()
+    }
+
+    /**
+     * 기본 레이아웃 파라미터 생성
+     */
+    private fun createDefaultLayoutParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         PixelFormat.TRANSLUCENT
     )
-    private val targetParams = WindowManager.LayoutParams(
+
+    /**
+     * 타겟 뷰를 위한 레이아웃 파라미터 생성
+     */
+    private fun createTargetLayoutParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -47,38 +76,56 @@ class ClickerService : Service() {
         PixelFormat.TRANSLUCENT
     )
 
-    override fun onBind(intent: Intent): IBinder? {
-        return null
+    /**
+     * UI 컴포넌트 초기화
+     */
+    private fun initializeViews() {
+        initializeOverlayButton()
+        initializeCoordinateButton()
+        initializeAutoClickButton()
+        initializeCloseButton()
+        initializeTimeTextView()
+        initializeNumberPickerButton()
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    override fun onCreate() {
-        super.onCreate()
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-
+    /**
+     * 오버레이 버튼 초기화
+     */
+    private fun initializeOverlayButton() {
         overlayButton = Button(this).apply {
             text = "Click Here"
             setOnClickListener {
                 performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
             }
         }
+    }
 
+    /**
+     * 좌표 설정 버튼 초기화
+     */
+    private fun initializeCoordinateButton() {
         coordinateButton = Button(this).apply {
             text = "Set Coordinate"
             setOnClickListener { showTargetView() }
         }
+    }
 
+    /**
+     * 자동 클릭 버튼 초기화
+     */
+    private fun initializeAutoClickButton() {
         autoClickButton = Button(this).apply {
             text = "Start Auto Click"
             setOnClickListener {
-                if (!isAutoClicking) {
-                    startAutoClick()
-                } else {
-                    stopAutoClick()
-                }
+                if (!isAutoClicking) startAutoClick() else stopAutoClick()
             }
         }
+    }
 
+    /**
+     * 닫기 버튼 초기화
+     */
+    private fun initializeCloseButton() {
         closeButton = Button(this).apply {
             text = "X"
             setOnClickListener {
@@ -86,136 +133,144 @@ class ClickerService : Service() {
                 stopSelf()
             }
         }
+    }
 
+    /**
+     * 시간 표시 텍스트뷰 초기화
+     */
+    private fun initializeTimeTextView() {
         timeTextView = TextView(this).apply {
             textSize = 20f
             setTextColor(android.graphics.Color.BLACK)
             setPadding(10, 10, 10, 10)
             setBackgroundColor(android.graphics.Color.LTGRAY)
         }
+    }
 
-        // 숫자 선택 버튼 추가 및 설정
+    /**
+     * 숫자 선택 버튼 초기화
+     */
+    private fun initializeNumberPickerButton() {
         numberPickerButton = Button(this).apply {
             text = "Pick a Number"
             setOnClickListener { showNumberPickerDialog() }
         }
-
-        params.gravity = Gravity.TOP or Gravity.START
-        params.x = 0
-        params.y = 0
-
-        val buttonParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-
-        buttonParams.gravity = Gravity.TOP or Gravity.START
-
-        buttonParams.x = 0
-        buttonParams.y = 0
-        windowManager!!.addView(overlayButton, buttonParams)
-
-        buttonParams.x = 0
-        buttonParams.y = 150
-        windowManager!!.addView(coordinateButton, buttonParams)
-
-        buttonParams.x = 0
-        buttonParams.y = 300
-        windowManager!!.addView(autoClickButton, buttonParams)
-
-        buttonParams.x = 0
-        buttonParams.y = 450
-        windowManager!!.addView(closeButton, buttonParams)
-
-        buttonParams.x = 0
-        buttonParams.y = 600 // closeButton 아래에 위치
-        windowManager!!.addView(numberPickerButton, buttonParams) // 숫자 선택 버튼 추가
-
-        val timeTextParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-        timeTextParams.gravity = Gravity.TOP or Gravity.END
-        timeTextParams.x = 0
-        timeTextParams.y = 0
-        windowManager!!.addView(timeTextView, timeTextParams)
-
-        updateTime()
     }
 
-    // 숫자 선택 다이얼로그를 표시하는 함수
+    /**
+     * 뷰 위치 설정
+     */
+    private fun setupViewPositions() {
+        val buttonParams = createDefaultLayoutParams()
+        buttonParams.gravity = Gravity.TOP or Gravity.START
+
+        // 각 버튼 위치 설정
+        addViewWithPosition(overlayButton, buttonParams, 0, 0)
+        addViewWithPosition(coordinateButton, buttonParams, 0, 150)
+        addViewWithPosition(autoClickButton, buttonParams, 0, 300)
+        addViewWithPosition(closeButton, buttonParams, 0, 450)
+        addViewWithPosition(numberPickerButton, buttonParams, 0, 600)
+
+        // 시간 텍스트뷰 위치 설정
+        val timeTextParams = createDefaultLayoutParams()
+        timeTextParams.gravity = Gravity.TOP or Gravity.END
+        addViewWithPosition(timeTextView, timeTextParams, 0, 0)
+    }
+
+    /**
+     * 뷰를 특정 위치에 추가
+     */
+    private fun addViewWithPosition(view: View?, params: WindowManager.LayoutParams, x: Int, y: Int) {
+        params.x = x
+        params.y = y
+        view?.let { windowManager?.addView(it, params) }
+    }
+
+    /**
+     * 숫자 선택 다이얼로그 표시
+     */
     private fun showNumberPickerDialog() {
-        val numbers = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
-        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert) // 테마 변경
+        val numbers = (0..9).map { it.toString() }.toTypedArray()
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("Choose a number")
             .setItems(numbers) { _, which ->
                 Log.d("ClickerService", "Selected number: ${numbers[which]}")
             }
-            .create().apply {
-                // WindowManager.LayoutParams 설정
+            .create()
+            .apply {
                 window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
             }
             .show()
     }
 
+    /**
+     * 타겟 뷰 표시
+     */
+    @SuppressLint("ClickableViewAccessibility")
     private fun showTargetView() {
         if (targetView == null) {
             targetView = ImageView(this).apply {
                 setImageResource(android.R.drawable.ic_menu_mylocation)
+                setOnTouchListener(createTargetViewTouchListener())
             }
 
-            targetParams.gravity = Gravity.TOP or Gravity.START
-            targetParams.x = 500
-            targetParams.y = 500
-            windowManager!!.addView(targetView, targetParams)
-
-            targetView!!.setOnTouchListener { view: View, event: MotionEvent ->
-                when (event.action) {
-                    MotionEvent.ACTION_MOVE -> {
-                        targetParams.x = event.rawX.toInt() - view.width / 2
-                        targetParams.y = event.rawY.toInt() - view.height / 2
-                        windowManager!!.updateViewLayout(view, targetParams)
-                    }
-                    MotionEvent.ACTION_UP -> view.performClick()
-                }
-                true
+            targetParams.apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = 500
+                y = 500
             }
+            windowManager?.addView(targetView, targetParams)
         }
     }
 
+    /**
+     * 타겟 뷰 터치 리스너 생성
+     */
+    private fun createTargetViewTouchListener() = View.OnTouchListener { view, event ->
+        when (event.action) {
+            MotionEvent.ACTION_MOVE -> {
+                targetParams.x = event.rawX.toInt() - view.width / 2
+                targetParams.y = event.rawY.toInt() - view.height / 2
+                windowManager?.updateViewLayout(view, targetParams)
+            }
+            MotionEvent.ACTION_UP -> view.performClick()
+        }
+        true
+    }
+
+    /**
+     * 자동 클릭 시작
+     */
     private fun startAutoClick() {
         isAutoClicking = true
         autoClickButton?.text = "Stop Auto Click"
         scheduleHourlyClick()
     }
 
+    /**
+     * 자동 클릭 중지
+     */
     private fun stopAutoClick() {
         isAutoClicking = false
         autoClickButton?.text = "Start Auto Click"
         handler.removeCallbacksAndMessages(null)
     }
 
+    /**
+     * 매시 59분 59.3초에 클릭 실행
+     */
     private fun scheduleHourlyClick() {
         val scheduleClickRunnable = object : Runnable {
             override fun run() {
                 if (isAutoClicking) {
                     val calendar = Calendar.getInstance()
-                    val minutes = calendar[Calendar.MINUTE]
                     val seconds = calendar[Calendar.SECOND]
                     val milliseconds = calendar[Calendar.MILLISECOND]
 
-                    // 59분 59.3초(59분 59300밀리초)일 때 클릭 실행
                     if (seconds == 59 && milliseconds >= 300) {
                         performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
                     }
 
-                    // 10ms 간격으로 체크하여 더 정확한 타이밍 확보
                     handler.postDelayed(this, 10)
                 }
             }
@@ -223,34 +278,35 @@ class ClickerService : Service() {
         handler.post(scheduleClickRunnable)
     }
 
+    /**
+     * 현재 시간 업데이트
+     */
     private fun updateTime() {
         val timeFormat = SimpleDateFormat("HH:mm:ss.S", Locale.getDefault())
-        val runnableCode = object : Runnable {
+        val updateTimeRunnable = object : Runnable {
             override fun run() {
-                val currentTime = timeFormat.format(Calendar.getInstance().time)
-                timeTextView?.text = currentTime
+                timeTextView?.text = timeFormat.format(Calendar.getInstance().time)
                 handler.postDelayed(this, 10)
             }
         }
-        handler.post(runnableCode)
+        handler.post(updateTimeRunnable)
     }
 
+    /**
+     * 지정된 위치에서 클릭 수행
+     */
     private fun performClickAtPosition(x: Float, y: Float) {
         Log.d("ClickerService", "클릭 시작: ${System.currentTimeMillis()}")
         ClickerAccessibilityService.instance?.performClick(x, y)
         Log.d("ClickerService", "클릭 종료: ${System.currentTimeMillis()}")
-
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        overlayButton?.let { windowManager!!.removeView(it) }
-        coordinateButton?.let { windowManager!!.removeView(it) }
-        autoClickButton?.let { windowManager!!.removeView(it) }
-        closeButton?.let { windowManager!!.removeView(it) }
-        targetView?.let { windowManager!!.removeView(it) }
-        timeTextView?.let { windowManager!!.removeView(it) }
-        numberPickerButton?.let { windowManager!!.removeView(it) } // 숫자 선택 버튼 제거
+        // 모든 뷰 제거
+        listOf(overlayButton, coordinateButton, autoClickButton,
+            closeButton, targetView, timeTextView, numberPickerButton)
+            .forEach { it?.let { view -> windowManager?.removeView(view) } }
         stopAutoClick()
     }
 }
