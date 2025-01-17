@@ -39,6 +39,7 @@ class ClickerService : Service() {
     // 상태 관리
     private var isAutoClicking = false
     private val handler = Handler(Looper.getMainLooper())
+    private var selectedMilliseconds: Int = 600  // 기본값 600
 
     // 윈도우 매니저 파라미터 설정
     private val params = createDefaultLayoutParams()
@@ -95,7 +96,7 @@ class ClickerService : Service() {
      */
     private fun initializeOverlayButton() {
         overlayButton = Button(this).apply {
-            text = "Click Here"
+            text = "1번 클릭(테스트용)"
             setOnClickListener {
                 performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
             }
@@ -107,7 +108,7 @@ class ClickerService : Service() {
      */
     private fun initializeCoordinateButton() {
         coordinateButton = Button(this).apply {
-            text = "Set Coordinate"
+            text = "좌표 설정"
             setOnClickListener { showTargetView() }
         }
     }
@@ -117,7 +118,7 @@ class ClickerService : Service() {
      */
     private fun initializeAutoClickButton() {
         autoClickButton = Button(this).apply {
-            text = "Start Auto Click"
+            text = "59.x초에 연속클릭 수행"
             setOnClickListener {
                 if (!isAutoClicking) startAutoClick() else stopAutoClick()
             }
@@ -154,7 +155,7 @@ class ClickerService : Service() {
      */
     private fun initializeNumberPickerButton() {
         numberPickerButton = Button(this).apply {
-            text = "Pick a Number"
+            text = "선택된 시간: ${selectedMilliseconds}ms"  // 초기값 표시
             setOnClickListener { showNumberPickerDialog() }
         }
     }
@@ -207,9 +208,14 @@ class ClickerService : Service() {
     private fun showNumberPickerDialog() {
         val numbers = (0..9).map { it.toString() }.toTypedArray()
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-            .setTitle("Choose a number")
+            .setTitle("Choose a number (0-9)")
             .setItems(numbers) { _, which ->
-                Log.d("ClickerService", "Selected number: ${numbers[which]}")
+                // 선택된 숫자에 100을 곱하여 밀리초 값으로 변환 (0->0ms, 1->100ms, ..., 9->900ms)
+                selectedMilliseconds = which * 100
+                Log.d("ClickerService", "Selected milliseconds: $selectedMilliseconds")
+
+                // 선택된 값을 버튼 텍스트에 표시
+                numberPickerButton?.text = "선택된 시간: ${selectedMilliseconds}ms"
             }
             .create()
             .apply {
@@ -282,9 +288,9 @@ class ClickerService : Service() {
                     val seconds = calendar[Calendar.SECOND]
                     val milliseconds = calendar[Calendar.MILLISECOND]
 
-                    if (seconds == 59 && milliseconds >= 300) {
+                    // selectedMilliseconds 값을 사용하여 체크
+                    if (seconds == 59 && milliseconds >= selectedMilliseconds) {
                         performRapidClicks(targetParams.x.toFloat(), targetParams.y.toFloat())
-//                        performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
                         return
                     }
 
