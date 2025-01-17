@@ -20,17 +20,7 @@ class ClickerAccessibilityService : AccessibilityService() {
             .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
             .build()
 
-        return dispatchGesture(gesture, object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-                Log.d("ClickerService", "Click completed at x:$x, y:$y")
-            }
-
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                super.onCancelled(gestureDescription)
-                Log.e("ClickerService", "Click cancelled")
-            }
-        }, null)
+        return dispatchGesture(gesture,null,null)
     }
 
     companion object {

@@ -1,6 +1,7 @@
 package com.example.timemacro
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -26,7 +27,8 @@ class ClickerService : Service() {
     private var autoClickButton: Button? = null
     private var closeButton: Button? = null
     private var targetView: ImageView? = null
-    private var timeTextView: TextView? = null // 시간 표시를 위한 TextView
+    private var timeTextView: TextView? = null
+    private var numberPickerButton: Button? = null // 숫자 선택 버튼 추가
     private var isAutoClicking = false
     private val handler = Handler(Looper.getMainLooper())
 
@@ -85,12 +87,17 @@ class ClickerService : Service() {
             }
         }
 
-        // TextView 초기화 및 설정
         timeTextView = TextView(this).apply {
             textSize = 20f
             setTextColor(android.graphics.Color.BLACK)
             setPadding(10, 10, 10, 10)
             setBackgroundColor(android.graphics.Color.LTGRAY)
+        }
+
+        // 숫자 선택 버튼 추가 및 설정
+        numberPickerButton = Button(this).apply {
+            text = "Pick a Number"
+            setOnClickListener { showNumberPickerDialog() }
         }
 
         params.gravity = Gravity.TOP or Gravity.START
@@ -123,7 +130,10 @@ class ClickerService : Service() {
         buttonParams.y = 450
         windowManager!!.addView(closeButton, buttonParams)
 
-        // TextView 위치 설정
+        buttonParams.x = 0
+        buttonParams.y = 600 // closeButton 아래에 위치
+        windowManager!!.addView(numberPickerButton, buttonParams) // 숫자 선택 버튼 추가
+
         val timeTextParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -131,13 +141,27 @@ class ClickerService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
-        timeTextParams.gravity = Gravity.TOP or Gravity.END // 오른쪽 상단 정렬
+        timeTextParams.gravity = Gravity.TOP or Gravity.END
         timeTextParams.x = 0
         timeTextParams.y = 0
         windowManager!!.addView(timeTextView, timeTextParams)
 
-        // 시간 업데이트 시작
         updateTime()
+    }
+
+    // 숫자 선택 다이얼로그를 표시하는 함수
+    private fun showNumberPickerDialog() {
+        val numbers = arrayOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert) // 테마 변경
+            .setTitle("Choose a number")
+            .setItems(numbers) { _, which ->
+                Log.d("ClickerService", "Selected number: ${numbers[which]}")
+            }
+            .create().apply {
+                // WindowManager.LayoutParams 설정
+                window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            }
+            .show()
     }
 
     private fun showTargetView() {
@@ -182,46 +206,40 @@ class ClickerService : Service() {
             override fun run() {
                 if (isAutoClicking) {
                     val calendar = Calendar.getInstance()
+                    val minutes = calendar[Calendar.MINUTE]
                     val seconds = calendar[Calendar.SECOND]
                     val milliseconds = calendar[Calendar.MILLISECOND]
 
-                    var delay = ((59 * 1000 + 300) - (seconds * 1000 + milliseconds)).toLong()
-                    if (delay < 0) {
-                        delay += (60 * 1000).toLong()
+                    // 59분 59.3초(59분 59300밀리초)일 때 클릭 실행
+                    if (seconds == 59 && milliseconds >= 300) {
+                        performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
                     }
 
-                    handler.postDelayed({
-                        if (isAutoClicking) {
-                            performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
-                            handler.postDelayed(this, 60 * 1000)
-                        }
-                    }, delay)
+                    // 10ms 간격으로 체크하여 더 정확한 타이밍 확보
+                    handler.postDelayed(this, 10)
                 }
             }
         }
-
         handler.post(scheduleClickRunnable)
     }
 
-    // 시간 업데이트 함수
     private fun updateTime() {
         val timeFormat = SimpleDateFormat("HH:mm:ss.S", Locale.getDefault())
         val runnableCode = object : Runnable {
             override fun run() {
                 val currentTime = timeFormat.format(Calendar.getInstance().time)
                 timeTextView?.text = currentTime
-                handler.postDelayed(this, 100) // 0.1초마다 업데이트
+                handler.postDelayed(this, 10)
             }
         }
         handler.post(runnableCode)
     }
 
     private fun performClickAtPosition(x: Float, y: Float) {
-        ClickerAccessibilityService.instance?.let { service ->
-            if (!service.performClick(x, y)) {
-                Log.e("ClickerService", "Failed to perform click")
-            }
-        } ?: Log.e("ClickerService", "Accessibility Service not running")
+        Log.d("ClickerService", "클릭 시작: ${System.currentTimeMillis()}")
+        ClickerAccessibilityService.instance?.performClick(x, y)
+        Log.d("ClickerService", "클릭 종료: ${System.currentTimeMillis()}")
+
     }
 
     override fun onDestroy() {
@@ -231,7 +249,8 @@ class ClickerService : Service() {
         autoClickButton?.let { windowManager!!.removeView(it) }
         closeButton?.let { windowManager!!.removeView(it) }
         targetView?.let { windowManager!!.removeView(it) }
-        timeTextView?.let { windowManager!!.removeView(it) } // TextView 제거
+        timeTextView?.let { windowManager!!.removeView(it) }
+        numberPickerButton?.let { windowManager!!.removeView(it) } // 숫자 선택 버튼 제거
         stopAutoClick()
     }
 }
