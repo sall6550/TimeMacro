@@ -34,6 +34,7 @@ class ClickerService : Service() {
     private var targetView: ImageView? = null
     private var timeTextView: TextView? = null
     private var numberPickerButton: Button? = null
+    private var rapidClickButton: Button? = null
 
     // 상태 관리
     private var isAutoClicking = false
@@ -86,6 +87,7 @@ class ClickerService : Service() {
         initializeCloseButton()
         initializeTimeTextView()
         initializeNumberPickerButton()
+        initializeRapidClickButton()
     }
 
     /**
@@ -158,6 +160,18 @@ class ClickerService : Service() {
     }
 
     /**
+     * 빠른 연속 클릭 버튼 초기화
+     */
+    private fun initializeRapidClickButton() {
+        rapidClickButton = Button(this).apply {
+            text = "3초 연속 클릭"
+            setOnClickListener {
+                performRapidClicks(targetParams.x.toFloat(), targetParams.y.toFloat())
+            }
+        }
+    }
+
+    /**
      * 뷰 위치 설정
      */
     private fun setupViewPositions() {
@@ -170,6 +184,7 @@ class ClickerService : Service() {
         addViewWithPosition(autoClickButton, buttonParams, 0, 300)
         addViewWithPosition(closeButton, buttonParams, 0, 450)
         addViewWithPosition(numberPickerButton, buttonParams, 0, 600)
+        addViewWithPosition(rapidClickButton, buttonParams, 0, 750)  // 추가
 
         // 시간 텍스트뷰 위치 설정
         val timeTextParams = createDefaultLayoutParams()
@@ -268,7 +283,9 @@ class ClickerService : Service() {
                     val milliseconds = calendar[Calendar.MILLISECOND]
 
                     if (seconds == 59 && milliseconds >= 300) {
-                        performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
+                        performRapidClicks(targetParams.x.toFloat(), targetParams.y.toFloat())
+//                        performClickAtPosition(targetParams.x.toFloat(), targetParams.y.toFloat())
+                        return
                     }
 
                     handler.postDelayed(this, 10)
@@ -301,11 +318,43 @@ class ClickerService : Service() {
         Log.d("ClickerService", "클릭 종료: ${System.currentTimeMillis()}")
     }
 
+    private fun performRapidClicks(x: Float, y: Float, clickIntervalMs: Long = 100) {
+        var clickCount = 0
+        val startTime = System.currentTimeMillis()
+        val duration = 3000 // 3초
+
+        val rapidClickRunnable = object : Runnable {
+            override fun run() {
+                val currentTime = System.currentTimeMillis()
+                val elapsedTime = currentTime - startTime
+
+                if (elapsedTime < duration) {
+                    // 클릭 수행
+                    performClickAtPosition(x, y)
+                    clickCount++
+
+                    // 로그 출력
+                    Log.d("ClickerService", "빠른 클릭 수행: $clickCount, 경과 시간: ${elapsedTime}ms")
+
+                    // 다음 클릭 예약
+                    handler.postDelayed(this, clickIntervalMs)
+                } else {
+                    // 3초가 지나면 종료
+                    Log.d("ClickerService", "빠른 클릭 종료 - 총 클릭 횟수: $clickCount")
+                }
+            }
+        }
+
+        // 첫 클릭 시작
+        handler.post(rapidClickRunnable)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // 모든 뷰 제거
         listOf(overlayButton, coordinateButton, autoClickButton,
-            closeButton, targetView, timeTextView, numberPickerButton)
+            closeButton, targetView, timeTextView, numberPickerButton,
+            rapidClickButton)  // rapidClickButton 추가
             .forEach { it?.let { view -> windowManager?.removeView(view) } }
         stopAutoClick()
     }
