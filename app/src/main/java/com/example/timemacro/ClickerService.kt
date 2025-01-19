@@ -232,6 +232,10 @@ class ClickerService : Service() {
         if (targetView == null) {
             targetView = ImageView(this).apply {
                 setImageResource(android.R.drawable.ic_menu_mylocation)
+                // 아이콘 크기 조절
+                layoutParams = WindowManager.LayoutParams(100, 100)
+                // 이미지 색상을 더 진하게 설정
+                setColorFilter(android.graphics.Color.rgb(0, 0, 139))  // 진한 파란색
                 setOnTouchListener(createTargetViewTouchListener())
             }
 
