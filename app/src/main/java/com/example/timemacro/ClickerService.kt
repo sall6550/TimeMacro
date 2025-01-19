@@ -3,6 +3,7 @@ package com.example.timemacro
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -44,6 +45,10 @@ class ClickerService : Service() {
     // 윈도우 매니저 파라미터 설정
     private val params = createDefaultLayoutParams()
     private val targetParams = createTargetLayoutParams()
+
+    private val PREFS_NAME = "ClickerPrefs"
+    private val KEY_TARGET_X = "target_x"
+    private val KEY_TARGET_Y = "target_y"
 
     override fun onBind(intent: Intent): IBinder? = null
 
@@ -132,6 +137,7 @@ class ClickerService : Service() {
         closeButton = Button(this).apply {
             text = "X"
             setOnClickListener {
+                saveTargetPosition()
                 stopAutoClick()
                 stopSelf()
             }
@@ -232,17 +238,16 @@ class ClickerService : Service() {
         if (targetView == null) {
             targetView = ImageView(this).apply {
                 setImageResource(android.R.drawable.ic_menu_mylocation)
-                // 아이콘 크기 조절
                 layoutParams = WindowManager.LayoutParams(100, 100)
-                // 이미지 색상을 더 진하게 설정
-                setColorFilter(android.graphics.Color.rgb(0, 0, 139))  // 진한 파란색
+                setColorFilter(android.graphics.Color.rgb(0, 0, 139))
                 setOnTouchListener(createTargetViewTouchListener())
             }
 
             targetParams.apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = 500
-                y = 500
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                x = prefs.getInt(KEY_TARGET_X, 500)  // 기본값 500
+                y = prefs.getInt(KEY_TARGET_Y, 500)  // 기본값 500
             }
             windowManager?.addView(targetView, targetParams)
         }
@@ -357,6 +362,19 @@ class ClickerService : Service() {
 
         // 첫 클릭 시작
         handler.post(rapidClickRunnable)
+    }
+
+    /**
+     * 현재 타겟 위치 저장
+     */
+    private fun saveTargetPosition() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putInt(KEY_TARGET_X, targetParams.x)
+            putInt(KEY_TARGET_Y, targetParams.y)
+            apply()
+        }
+        Log.d("ClickerService", "좌표 저장됨: x=${targetParams.x}, y=${targetParams.y}")
     }
 
     override fun onDestroy() {
