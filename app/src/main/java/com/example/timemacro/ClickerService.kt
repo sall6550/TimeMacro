@@ -40,15 +40,15 @@ class ClickerService : Service() {
     // 상태 관리
     private var isAutoClicking = false
     private val handler = Handler(Looper.getMainLooper())
+    private val PREFS_NAME = "ClickerPrefs"
+    private val KEY_TARGET_X = "target_x"
+    private val KEY_TARGET_Y = "target_y"
+    private val KEY_SELECTED_MILLISECONDS = "selected_milliseconds"
     private var selectedMilliseconds: Int = 600  // 기본값 600
 
     // 윈도우 매니저 파라미터 설정
     private val params = createDefaultLayoutParams()
     private val targetParams = createTargetLayoutParams()
-
-    private val PREFS_NAME = "ClickerPrefs"
-    private val KEY_TARGET_X = "target_x"
-    private val KEY_TARGET_Y = "target_y"
 
     override fun onBind(intent: Intent): IBinder? = null
 
@@ -56,6 +56,8 @@ class ClickerService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        selectedMilliseconds = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_SELECTED_MILLISECONDS, 600)
         initializeViews()
         setupViewPositions()
         updateTime()
@@ -216,11 +218,15 @@ class ClickerService : Service() {
         AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("Choose a number (0-9)")
             .setItems(numbers) { _, which ->
-                // 선택된 숫자에 100을 곱하여 밀리초 값으로 변환 (0->0ms, 1->100ms, ..., 9->900ms)
                 selectedMilliseconds = which * 100
                 Log.d("ClickerService", "Selected milliseconds: $selectedMilliseconds")
+                
+                // 선택된 값을 SharedPreferences에 저장
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt(KEY_SELECTED_MILLISECONDS, selectedMilliseconds)
+                    .apply()
 
-                // 선택된 값을 버튼 텍스트에 표시
                 numberPickerButton?.text = "선택된 시간: ${selectedMilliseconds}ms"
             }
             .create()
