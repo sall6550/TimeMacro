@@ -61,6 +61,7 @@ class ClickerService : Service() {
         initializeViews()
         setupViewPositions()
         updateTime()
+        showTargetView()  // 앱 시작시 자동으로 타겟 뷰 표시
     }
 
     /**
