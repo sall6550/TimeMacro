@@ -1,5 +1,6 @@
 package com.example.timemacro
 
+import TimeSyncWorker
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Service
@@ -17,8 +18,11 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 /**
@@ -58,12 +62,20 @@ class ClickerService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         selectedMilliseconds = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getInt(KEY_SELECTED_MILLISECONDS, 600)
+        TimeSyncWorker.schedulePeriodicSync(this)
+        syncTimeImmediately()
         initializeViews()
         setupViewPositions()
         updateTime()
         showTargetView()  // 앱 시작시 자동으로 타겟 뷰 표시
     }
 
+    private fun syncTimeImmediately() {
+        val request = OneTimeWorkRequestBuilder<TimeSyncWorker>()
+            .addTag("initial_sync")
+            .build()
+        WorkManager.getInstance(this).enqueue(request)
+    }
     /**
      * 기본 레이아웃 파라미터 생성
      */
@@ -300,21 +312,26 @@ class ClickerService : Service() {
         val scheduleClickRunnable = object : Runnable {
             override fun run() {
                 if (isAutoClicking) {
-                    val calendar = Calendar.getInstance()
+                    val correctedTime = getCorrectedTime()
+                    val calendar = Calendar.getInstance().apply { timeInMillis = correctedTime }
+
                     val seconds = calendar[Calendar.SECOND]
                     val milliseconds = calendar[Calendar.MILLISECOND]
 
-                    // selectedMilliseconds 값을 사용하여 체크
                     if (seconds == 59 && milliseconds >= selectedMilliseconds) {
                         performRapidClicks(targetParams.x.toFloat(), targetParams.y.toFloat())
                         return
                     }
 
-                    handler.postDelayed(this, 10)
+                    handler.postDelayed(this, 50) // 체크 간격 단축
                 }
             }
         }
         handler.post(scheduleClickRunnable)
+    }
+
+    private fun getCorrectedTime(): Long {
+        return System.currentTimeMillis() + TimeSyncWorker.getTimeOffset(this)
     }
 
     /**
@@ -324,8 +341,9 @@ class ClickerService : Service() {
         val timeFormat = SimpleDateFormat("HH:mm:ss.S", Locale.getDefault())
         val updateTimeRunnable = object : Runnable {
             override fun run() {
-                timeTextView?.text = timeFormat.format(Calendar.getInstance().time)
-                handler.postDelayed(this, 10)
+                val correctedTime = getCorrectedTime()
+                timeTextView?.text = timeFormat.format(Date(correctedTime))
+                handler.postDelayed(this, 100) // 100ms로 변경
             }
         }
         handler.post(updateTimeRunnable)
